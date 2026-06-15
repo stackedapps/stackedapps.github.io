@@ -1,22 +1,251 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>StackedApps Arcade</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stacked.gg</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1014;
+      --surface:   #16181d;
+      --surface2:  #1c1f26;
+      --border:    rgba(255,255,255,0.07);
+      --text:      #e8eaf0;
+      --muted:     #6b7280;
+      --accent-r:  #e84040;
+      --accent-b:  #3b82f6;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── SUBTLE GRADIENT BACKDROP ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% -10%, rgba(232,64,64,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 70% 50% at 80% 110%, rgba(59,130,246,0.07) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      padding: 28px 40px;
+    }
+
+    .wordmark {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      background: linear-gradient(90deg, var(--accent-b), #a78bfa, var(--accent-r));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 72px 24px 56px;
+    }
+
+    .hero-label {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.4rem, 5vw, 3.6rem);
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: var(--text);
+    }
+
+    .hero h1 strong {
+      font-weight: 600;
+    }
+
+    /* ── GRID ── */
+    .grid {
+      position: relative;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px 100px;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(255,255,255,0.13);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+
+    /* ── THUMBNAIL ── */
+    .thumb {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      display: block;
+    }
+
+    .thumb-placeholder {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+    }
+
+    /* ── CARD BODY ── */
+    .card-body {
+      padding: 20px 22px 22px;
+    }
+
+    .card-tag {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .card-name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .card-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-bottom: 18px;
+    }
+
+    .play-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      text-decoration: none;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .card:hover .play-btn {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(255,255,255,0.14);
+    }
+
+    .play-icon {
+      width: 12px; height: 12px;
+      fill: var(--accent-b);
+      flex-shrink: 0;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 24px;
+      font-size: 0.78rem;
+      color: #2a2f3a;
+    }
+  </style>
 </head>
-<body style="background:#111; color:white; font-family:Arial; text-align:center;">
+<body>
 
-    <h1>🎮 StackedApps Arcade</h1>
-    <p>Choose a game below</p>
+  <nav>
+    <span class="wordmark">Stacked.gg</span>
+  </nav>
 
-    <div style="display:inline-block; margin:20px; padding:20px; background:#222; border-radius:10px; width:200px;">
-        <h2>Snake</h2>
-        <a href="snake.html" style="color:lightblue;">Play</a>
-    </div>
+  <div class="hero">
+    <span class="hero-label">Game Library</span>
+    <h1>Pick a game.<br><strong>Start playing.</strong></h1>
+  </div>
 
-    <div style="display:inline-block; margin:20px; padding:20px; background:#222; border-radius:10px; width:200px;">
-        <h2>Eaglecraft</h2>
-        <a href="eaglecraft.html" style="color:lightblue;">Play</a>
-    </div>
+  <div class="grid">
+
+    <!-- SNAKE -->
+    <a class="card" href="https://stackedapps.github.io/snake">
+      <div class="thumb-placeholder">🐍</div>
+      <div class="card-body">
+        <div class="card-tag">Classic · Arcade</div>
+        <div class="card-name">Snake</div>
+        <div class="card-desc">[placeholder]</div>
+        <span class="play-btn">
+          <svg class="play-icon" viewBox="0 0 12 12"><polygon points="1,0 12,6 1,12"/></svg>
+          Play now
+        </span>
+      </div>
+    </a>
+
+    <!-- EAGLECRAFT -->
+    <a class="card" href="https://stackedapps.github.io/eaglecraft">
+      <div class="thumb-placeholder">🦅</div>
+      <div class="card-body">
+        <div class="card-tag">Sandbox · Adventure</div>
+        <div class="card-name">Eaglecraft</div>
+        <div class="card-desc">[placeholder]</div>
+        <span class="play-btn">
+          <svg class="play-icon" viewBox="0 0 12 12"><polygon points="1,0 12,6 1,12"/></svg>
+          Play now
+        </span>
+      </div>
+    </a>
+
+  </div>
+
+  <footer>© Stacked.gg</footer>
 
 </body>
 </html>

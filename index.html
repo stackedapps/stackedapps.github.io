@@ -2,270 +2,277 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>LAN Game Test - Synced Movement</title>
+<title>1v1 Combat - Online Test</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
-  body { font-family: sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; }
+  body { font-family: sans-serif; max-width: 720px; margin: 30px auto; padding: 0 20px; background: #1a1a1a; color: #eee; }
   h1 { font-size: 20px; }
-  textarea { width: 100%; height: 70px; font-family: monospace; font-size: 14px; letter-spacing: 1px; }
-  button { padding: 8px 16px; margin: 6px 4px 6px 0; cursor: pointer; }
-  #log { background: #111; color: #0f0; font-family: monospace; font-size: 12px; padding: 8px; height: 120px; overflow-y: auto; white-space: pre-wrap; }
-  .step { border: 1px solid #ccc; padding: 12px; margin-bottom: 14px; border-radius: 6px; }
+  input[type=text] { padding: 8px; font-size: 15px; width: 200px; }
+  button { padding: 10px 18px; margin: 6px 4px 6px 0; cursor: pointer; font-size: 15px; }
+  .step { border: 1px solid #444; padding: 14px; margin-bottom: 14px; border-radius: 8px; background: #222; }
+  .roomcode { font-size: 28px; font-weight: bold; text-align: center; background: #333; padding: 10px; border-radius: 6px; letter-spacing: 4px; }
   #status { font-weight: bold; }
-  .code { font-size: 16px; font-weight: bold; background: #f4f4f4; padding: 8px; border-radius: 4px; word-break: break-all; }
-  .ok { color: green; } .bad { color: #b00; }
-  #arena { border: 2px solid #333; width: 500px; height: 350px; position: relative; background: #fafafa; margin: 10px 0; }
-  .dot { width: 24px; height: 24px; border-radius: 50%; position: absolute; }
-  #me { background: #2266dd; }
-  #them { background: #dd4422; }
-  #stats { font-size: 13px; color: #444; }
+  #log { background: #000; color: #0f0; font-family: monospace; font-size: 11px; padding: 8px; height: 80px; overflow-y: auto; white-space: pre-wrap; border-radius: 6px; }
+  #arena { border: 2px solid #555; width: 640px; height: 320px; position: relative; background: #2c2c2c; margin: 10px 0; overflow: hidden; border-radius: 8px; }
+  .fighter { width: 36px; height: 56px; position: absolute; border-radius: 6px; transition: filter 0.1s; }
+  #p1 { background: #3399ff; }
+  #p2 { background: #ff5544; }
+  .stunned { filter: brightness(1.8) saturate(0.3); outline: 3px dashed yellow; }
+  .hpbar-wrap { width: 300px; height: 18px; background: #444; border-radius: 4px; overflow: hidden; }
+  .hpbar { height: 100%; background: linear-gradient(90deg,#4caf50,#8bc34a); transition: width 0.15s; }
+  .hud { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; }
+  .hudname { font-weight: bold; }
+  #skillbar { display: flex; gap: 8px; margin: 10px 0; }
+  .skillkey { border: 1px solid #666; border-radius: 6px; padding: 8px 12px; text-align: center; background: #333; min-width: 60px; }
+  .skillkey.cd { opacity: 0.4; }
+  #combatLog { font-size: 13px; color: #aaa; min-height: 20px; text-align: center; }
 </style>
 </head>
 <body>
-
-<h1>LAN game test - real-time synced movement</h1>
-<p>This tests continuous state syncing (player position, ~20x/sec) instead of one-off chat messages - closer to how an actual game behaves.</p>
-<p>Status: <span id="status">not connected</span></p>
-
-<div class="step">
-  <button id="hostBtn">I'm the HOST</button>
-  <button id="joinBtn">I'm the JOINER</button>
+ 
+<h1>1v1 Combat - Online Test (short room code, no signup)</h1>
+ 
+<div class="step" id="nameStep">
+  <p>Enter your name:</p>
+  <input type="text" id="nameInput" placeholder="Your name" maxlength="12">
 </div>
-
-<div id="hostFlow" class="step" style="display:none">
-  <p>Give this code to the joiner:</p>
-  <div class="code" id="hostOffer">Generating...</div>
-  <p>Paste the joiner's code back:</p>
-  <textarea id="hostAnswerInput" placeholder="Paste joiner's code here"></textarea>
-  <p id="hostAnswerCheck"></p>
-  <button id="hostConnectBtn">Connect</button>
+ 
+<div class="step" id="menuStep" style="display:none">
+  <button id="createBtn">Create Match</button>
+  <button id="joinBtn">Join Match</button>
 </div>
-
-<div id="joinFlow" class="step" style="display:none">
-  <p>Paste the host's code:</p>
-  <textarea id="joinOfferInput" placeholder="Paste host's code here"></textarea>
-  <p id="joinOfferCheck"></p>
-  <button id="joinGenBtn">Generate my code</button>
-  <p>Give this code back to the host:</p>
-  <div class="code" id="joinAnswer">Will appear here</div>
+ 
+<div class="step" id="createFlow" style="display:none">
+  <p>Share this code with your opponent:</p>
+  <div class="roomcode" id="roomCode">...</div>
+  <p>Status: <span id="status">waiting for opponent...</span></p>
 </div>
-
-<div id="arena">
-  <div id="me" class="dot" style="left:20px; top:20px;"></div>
-  <div id="them" class="dot" style="left:400px; top:280px; display:none;"></div>
+ 
+<div class="step" id="joinFlow" style="display:none">
+  <p>Enter the code your opponent gave you:</p>
+  <input type="text" id="codeInput" placeholder="room code">
+  <button id="joinConnectBtn">Connect</button>
+  <p>Status: <span id="joinStatus"></span></p>
 </div>
-<p>Use WASD or arrow keys to move your dot (blue). The other player's dot (red) should move in real time on your screen.</p>
-<p id="stats">Messages sent: 0 | received: 0 | last round-trip ping: -</p>
-
+ 
+<div id="gameStep" style="display:none">
+  <div class="hud">
+    <div>
+      <div class="hudname" id="p1name">You</div>
+      <div class="hpbar-wrap"><div class="hpbar" id="p1hp" style="width:100%"></div></div>
+    </div>
+    <div style="text-align:right">
+      <div class="hudname" id="p2name">Opponent</div>
+      <div class="hpbar-wrap"><div class="hpbar" id="p2hp" style="width:100%"></div></div>
+    </div>
+  </div>
+ 
+  <div id="arena">
+    <div id="p1" class="fighter" style="left:60px; top:130px;"></div>
+    <div id="p2" class="fighter" style="left:544px; top:130px;"></div>
+  </div>
+ 
+  <div id="combatLog"></div>
+ 
+  <div id="skillbar">
+    <div class="skillkey" id="skillSpace"><b>SPACE</b><br>Jab (5 dmg)</div>
+    <div class="skillkey" id="skillZ"><b>Z</b><br>Strike (12 dmg)</div>
+    <div class="skillkey" id="skillX"><b>X</b><br>Heavy (20 dmg, stun)</div>
+    <div class="skillkey" id="skillC"><b>C</b><br>Dash (8 dmg)</div>
+    <div class="skillkey" id="skillV"><b>V</b><br>Ultimate (30 dmg, long stun)</div>
+  </div>
+  <p style="font-size:12px;color:#888">WASD to move. Getting hit by X or V stuns you briefly (stun lock window).</p>
+</div>
+ 
 <div id="log"></div>
-
+ 
 <script>
-let pc, channel;
 const log = (m) => {
   const el = document.getElementById('log');
   el.textContent += m + "\n";
   el.scrollTop = el.scrollHeight;
 };
-const setStatus = (s) => document.getElementById('status').textContent = s;
-
-async function compress(str) {
-  const cs = new CompressionStream('gzip');
-  const writer = cs.writable.getWriter();
-  writer.write(new TextEncoder().encode(str));
-  writer.close();
-  const buf = await new Response(cs.readable).arrayBuffer();
-  let bin = '';
-  new Uint8Array(buf).forEach(b => bin += String.fromCharCode(b));
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+ 
+let peer, conn, isCreator = false;
+let myName = '', oppName = 'Opponent';
+ 
+document.getElementById('nameInput').addEventListener('input', (e) => {
+  document.getElementById('menuStep').style.display = e.target.value.trim() ? 'block' : 'none';
+});
+ 
+document.getElementById('createBtn').onclick = () => {
+  myName = document.getElementById('nameInput').value.trim() || 'Player1';
+  isCreator = true;
+  document.getElementById('createFlow').style.display = 'block';
+  document.getElementById('joinFlow').style.display = 'none';
+  document.getElementById('menuStep').style.display = 'none';
+ 
+  const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+  peer = new Peer('fight-' + code, { debug: 0 });
+  peer.on('open', () => {
+    document.getElementById('roomCode').textContent = code;
+    log('Room created: ' + code + '. Waiting for opponent...');
+  });
+  peer.on('connection', (c) => {
+    conn = c;
+    setupConnection();
+  });
+  peer.on('error', (err) => log('Peer error: ' + err.type));
+};
+ 
+document.getElementById('joinBtn').onclick = () => {
+  myName = document.getElementById('nameInput').value.trim() || 'Player2';
+  document.getElementById('joinFlow').style.display = 'block';
+  document.getElementById('createFlow').style.display = 'none';
+  document.getElementById('menuStep').style.display = 'none';
+};
+ 
+document.getElementById('joinConnectBtn').onclick = () => {
+  const code = document.getElementById('codeInput').value.trim().toUpperCase();
+  if (!code) return;
+  document.getElementById('joinStatus').textContent = 'connecting...';
+  peer = new Peer({ debug: 0 });
+  peer.on('open', () => {
+    conn = peer.connect('fight-' + code, { reliable: true });
+    conn.on('open', () => {
+      setupConnection();
+    });
+  });
+  peer.on('error', (err) => {
+    document.getElementById('joinStatus').textContent = 'error: ' + err.type;
+    log('Peer error: ' + err.type);
+  });
+};
+ 
+function setupConnection() {
+  log('Connected to opponent!');
+  document.getElementById('status').textContent = 'connected!';
+  conn.on('data', handleData);
+  conn.on('close', () => log('Opponent disconnected.'));
+  // Exchange names
+  conn.send({ type: 'hello', name: myName });
 }
-async function decompress(b64) {
-  b64 = b64.replace(/-/g, '+').replace(/_/g, '/');
-  while (b64.length % 4) b64 += '=';
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const ds = new DecompressionStream('gzip');
-  const writer = ds.writable.getWriter();
-  writer.write(bytes);
-  writer.close();
-  const buf = await new Response(ds.readable).arrayBuffer();
-  return new TextDecoder().decode(buf);
-}
-function checksum(str) {
-  let sum = 0;
-  for (let i = 0; i < str.length; i++) sum = (sum + str.charCodeAt(i) * (i + 1)) % 65521;
-  return sum.toString(16).padStart(4, '0').toUpperCase();
-}
-function groupCode(code) { return code.match(/.{1,5}/g).join(' '); }
-function ungroupCode(text) { return text.replace(/\s+/g, ''); }
-function makeDisplayCode(raw) { return groupCode(raw) + '  #' + checksum(raw); }
-function parseEnteredCode(text) {
-  text = text.trim();
-  const hashIdx = text.lastIndexOf('#');
-  let raw, given;
-  if (hashIdx !== -1) {
-    raw = ungroupCode(text.slice(0, hashIdx));
-    given = text.slice(hashIdx + 1).trim().toUpperCase();
-  } else {
-    raw = ungroupCode(text);
-    given = null;
+ 
+function handleData(msg) {
+  if (msg.type === 'hello') {
+    oppName = msg.name;
+    document.getElementById('p2name').textContent = oppName;
+    document.getElementById('p1name').textContent = myName;
+    startGame();
+  } else if (msg.type === 'pos') {
+    opp.x = msg.x;
+    opp.hp = msg.hp;
+    opp.stunnedUntil = msg.stunnedUntil;
+    renderOpp();
+  } else if (msg.type === 'hit') {
+    // I've been hit
+    me.hp = Math.max(0, me.hp - msg.dmg);
+    me.stunnedUntil = performance.now() + msg.stun;
+    showCombatLog(oppName + ' hit you for ' + msg.dmg + (msg.stun > 0 ? ' (stunned!)' : ''));
+    renderMe();
+    broadcastState();
   }
-  const expected = checksum(raw);
-  return { raw, valid: given ? given === expected : null, expected };
 }
-function trimSdp(desc) {
-  const lines = desc.sdp.split('\r\n');
-  let hostCandidateKept = false;
-  const kept = lines.filter(line => {
-    if (line.startsWith('a=candidate')) {
-      if (line.includes('typ host') && !hostCandidateKept) { hostCandidateKept = true; return true; }
-      return false;
-    }
-    return true;
-  });
-  return { type: desc.type, sdp: kept.join('\r\n') };
-}
-function createPeerConnection() {
-  pc = new RTCPeerConnection({ iceServers: [] });
-  pc.oniceconnectionstatechange = () => { log("ICE state: " + pc.iceConnectionState); setStatus(pc.iceConnectionState); };
-  return pc;
-}
-function waitForIceGatheringComplete(pc) {
-  return new Promise((resolve) => {
-    if (pc.iceGatheringState === 'complete') return resolve();
-    function check() { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', check); resolve(); } }
-    pc.addEventListener('icegatheringstatechange', check);
-  });
-}
-
+ 
 // --- Game state ---
-let myPos = { x: 20, y: 20 };
-let sentCount = 0, receivedCount = 0;
-let lastPingSent = 0;
+const ARENA_W = 640, FIGHTER_W = 36;
+let me = { x: 60, hp: 100, stunnedUntil: 0 };
+let opp = { x: 544, hp: 100, stunnedUntil: 0 };
 const keys = {};
-const ARENA_W = 500, ARENA_H = 350, SIZE = 24, SPEED = 4;
-
-function setupChannelEvents(ch) {
-  ch.onopen = () => {
-    log("[connected] Data channel open! Move with WASD/arrows.");
-    setStatus("CONNECTED");
-    document.getElementById('them').style.display = 'block';
-    // Send position updates ~20x/sec
-    setInterval(() => {
-      if (ch.readyState !== 'open') return;
-      ch.send(JSON.stringify({ type: 'pos', x: myPos.x, y: myPos.y, t: performance.now() }));
-      sentCount++;
-      updateStats();
-    }, 50);
-    // Ping every 2s to measure round-trip
-    setInterval(() => {
-      if (ch.readyState !== 'open') return;
-      lastPingSent = performance.now();
-      ch.send(JSON.stringify({ type: 'ping', t: lastPingSent }));
-    }, 2000);
-  };
-  ch.onclose = () => { log("[disconnected]"); setStatus("disconnected"); };
-  ch.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.type === 'pos') {
-      document.getElementById('them').style.left = msg.x + 'px';
-      document.getElementById('them').style.top = msg.y + 'px';
-      receivedCount++;
-      updateStats();
-    } else if (msg.type === 'ping') {
-      ch.send(JSON.stringify({ type: 'pong', t: msg.t }));
-    } else if (msg.type === 'pong') {
-      const rtt = Math.round(performance.now() - msg.t);
-      document.getElementById('stats').lastRtt = rtt;
-      updateStats(rtt);
-    }
-  };
+let gameStarted = false;
+ 
+const skills = {
+  ' ':  { dmg: 5,  stun: 0,    cd: 300,  el: 'skillSpace' },
+  'z':  { dmg: 12, stun: 300,  cd: 900,  el: 'skillZ' },
+  'x':  { dmg: 20, stun: 900,  cd: 1800, el: 'skillX' },
+  'c':  { dmg: 8,  stun: 200,  cd: 700,  el: 'skillC' },
+  'v':  { dmg: 30, stun: 1500, cd: 3500, el: 'skillV' },
+};
+const cooldownUntil = {};
+ 
+function startGame() {
+  gameStarted = true;
+  document.getElementById('gameStep').style.display = 'block';
+  document.getElementById('createFlow').style.display = 'none';
+  document.getElementById('joinFlow').style.display = 'none';
+  requestAnimationFrame(gameLoop);
+  setInterval(broadcastState, 50);
 }
-
-function updateStats(rtt) {
-  const el = document.getElementById('stats');
-  const rttText = rtt !== undefined ? rtt + 'ms' : (el.lastRtt !== undefined ? el.lastRtt + 'ms' : '-');
-  if (rtt !== undefined) el.lastRtt = rtt;
-  el.textContent = `Messages sent: ${sentCount} | received: ${receivedCount} | last round-trip ping: ${rttText}`;
+ 
+function showCombatLog(text) {
+  const el = document.getElementById('combatLog');
+  el.textContent = text;
+  setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 1500);
 }
-
-document.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
+ 
+function isStunned(f) { return performance.now() < f.stunnedUntil; }
+ 
+function tryAttack(key) {
+  if (isStunned(me)) return;
+  const now = performance.now();
+  if (cooldownUntil[key] && now < cooldownUntil[key]) return;
+  const s = skills[key];
+  cooldownUntil[key] = now + s.cd;
+  const dist = Math.abs(me.x - opp.x);
+  if (dist < 70) {
+    conn.send({ type: 'hit', dmg: s.dmg, stun: s.stun });
+    showCombatLog('You hit ' + oppName + ' for ' + s.dmg + (s.stun > 0 ? ' (stunned!)' : ''));
+  } else {
+    showCombatLog('Missed - too far');
+  }
+}
+ 
+document.addEventListener('keydown', (e) => {
+  if (!gameStarted) return;
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if (skills[k] !== undefined && !e.repeat) tryAttack(k);
+});
 document.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
-
+ 
 function gameLoop() {
-  let dx = 0, dy = 0;
-  if (keys['w'] || keys['arrowup']) dy -= SPEED;
-  if (keys['s'] || keys['arrowdown']) dy += SPEED;
-  if (keys['a'] || keys['arrowleft']) dx -= SPEED;
-  if (keys['d'] || keys['arrowright']) dx += SPEED;
-  myPos.x = Math.max(0, Math.min(ARENA_W - SIZE, myPos.x + dx));
-  myPos.y = Math.max(0, Math.min(ARENA_H - SIZE, myPos.y + dy));
-  document.getElementById('me').style.left = myPos.x + 'px';
-  document.getElementById('me').style.top = myPos.y + 'px';
+  if (gameStarted && !isStunned(me)) {
+    const SPEED = 5;
+    if (keys['a']) me.x -= SPEED;
+    if (keys['d']) me.x += SPEED;
+    me.x = Math.max(0, Math.min(ARENA_W - FIGHTER_W, me.x));
+  }
+  renderMe();
+  renderOpp();
+  updateSkillUI();
   requestAnimationFrame(gameLoop);
 }
-requestAnimationFrame(gameLoop);
-
-document.getElementById('hostBtn').onclick = async () => {
-  document.getElementById('hostFlow').style.display = 'block';
-  document.getElementById('joinFlow').style.display = 'none';
-  createPeerConnection();
-  channel = pc.createDataChannel("game");
-  setupChannelEvents(channel);
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  await waitForIceGatheringComplete(pc);
-  const trimmed = trimSdp(pc.localDescription);
-  const code = await compress(JSON.stringify(trimmed));
-  document.getElementById('hostOffer').textContent = makeDisplayCode(code);
-  log("Code generated. Give it to the joiner.");
-};
-document.getElementById('hostAnswerInput').addEventListener('input', (e) => {
-  const { valid, expected } = parseEnteredCode(e.target.value);
-  const el = document.getElementById('hostAnswerCheck');
-  if (valid === null) { el.textContent = ''; return; }
-  el.innerHTML = valid ? '<span class="ok">checksum ok</span>' : '<span class="bad">checksum mismatch (expected #' + expected + ')</span>';
-});
-document.getElementById('hostConnectBtn').onclick = async () => {
-  const { raw, valid } = parseEnteredCode(document.getElementById('hostAnswerInput').value);
-  if (!raw) return log("Paste the joiner's code first.");
-  if (valid === false) return log("Checksum mismatch - fix the typo.");
-  try {
-    const answer = JSON.parse(await decompress(raw));
-    await pc.setRemoteDescription(answer);
-    log("Remote answer set. Connecting...");
-  } catch (e) { log("Error: " + e.message); }
-};
-document.getElementById('joinBtn').onclick = () => {
-  document.getElementById('joinFlow').style.display = 'block';
-  document.getElementById('hostFlow').style.display = 'none';
-};
-document.getElementById('joinOfferInput').addEventListener('input', (e) => {
-  const { valid, expected } = parseEnteredCode(e.target.value);
-  const el = document.getElementById('joinOfferCheck');
-  if (valid === null) { el.textContent = ''; return; }
-  el.innerHTML = valid ? '<span class="ok">checksum ok</span>' : '<span class="bad">checksum mismatch (expected #' + expected + ')</span>';
-});
-document.getElementById('joinGenBtn').onclick = async () => {
-  const { raw, valid } = parseEnteredCode(document.getElementById('joinOfferInput').value);
-  if (!raw) return log("Paste the host's code first.");
-  if (valid === false) return log("Checksum mismatch - fix the typo.");
-  try {
-    createPeerConnection();
-    pc.ondatachannel = (e) => { channel = e.channel; setupChannelEvents(channel); };
-    const offer = JSON.parse(await decompress(raw));
-    await pc.setRemoteDescription(offer);
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await waitForIceGatheringComplete(pc);
-    const trimmed = trimSdp(pc.localDescription);
-    const code = await compress(JSON.stringify(trimmed));
-    document.getElementById('joinAnswer').textContent = makeDisplayCode(code);
-    log("Code generated. Give it back to the host.");
-  } catch (e) { log("Error: " + e.message); }
-};
-
-log("Ready. This tests real game traffic: ~20 position updates/sec plus latency pings, not just chat.");
+ 
+function renderMe() {
+  const el = document.getElementById('p1');
+  el.style.left = me.x + 'px';
+  el.classList.toggle('stunned', isStunned(me));
+  document.getElementById('p1hp').style.width = me.hp + '%';
+  if (me.hp <= 0) showCombatLog('You lost!');
+}
+function renderOpp() {
+  const el = document.getElementById('p2');
+  el.style.left = opp.x + 'px';
+  el.classList.toggle('stunned', isStunned(opp));
+  document.getElementById('p2hp').style.width = opp.hp + '%';
+  if (opp.hp <= 0) showCombatLog('You won!');
+}
+function updateSkillUI() {
+  const now = performance.now();
+  for (const k in skills) {
+    const el = document.getElementById(skills[k].el);
+    const onCd = cooldownUntil[k] && now < cooldownUntil[k];
+    el.classList.toggle('cd', !!onCd);
+  }
+}
+function broadcastState() {
+  if (conn && conn.open) {
+    conn.send({ type: 'pos', x: me.x, hp: me.hp, stunnedUntil: me.stunnedUntil });
+  }
+}
+ 
+log('Ready. This uses PeerJS\'s free public broker for connection setup - works over real internet, no LAN/hotspot needed.');
 </script>
-
+ 
 </body>
 </html>
